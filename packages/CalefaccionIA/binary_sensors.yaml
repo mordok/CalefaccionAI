@@ -1,1 +1,37 @@
-# Contenido del archivo binary_sensors.yaml
+# Sensores binarios para control de la bomba, demandas y hora pico solar
+
+binary_sensor:
+  - platform: template
+    sensors:
+      geniaair_activa:
+        friendly_name: "GeniaAir Activa"
+        value_template: >
+          {% set consumo = states('sensor.geniaair_consumo_actual') | float(0) %}
+          {{ consumo > 500 }}
+        device_class: heat
+        delay_off:
+          minutes: 3
+      demanda_calefaccion_general:
+        friendly_name: "Demanda Calefacción General"
+        value_template: >
+          {{
+            is_state('climate.temostatov_sala', 'heat') or
+            is_state('climate.temostatov_banos', 'heat') or
+            is_state('climate.termostato_dormitorio', 'heat') or
+            is_state('climate.temostatov_cocina', 'heat') or
+            is_state('climate.temostatov_entrada', 'heat') or
+            is_state('climate.temostatov_hab_peq', 'heat')
+          }}
+        device_class: heat
+      es_hora_pico_solar:
+        friendly_name: "Es Hora Pico Solar"
+        value_template: >
+          {% set hora_pico = states('sensor.power_highest_peak_time_today') %}
+          {% set ahora = now().hour %}
+          {% if hora_pico != 'unknown' %}
+            {% set hora_pico_num = hora_pico.split(':')[0] | int %}
+            {{ ahora >= (hora_pico_num - 1) and ahora <= (hora_pico_num + 1) }}
+          {% else %}
+            {{ ahora >= 12 and ahora <= 14 }}
+          {% endif %}
+        icon_template: mdi:white-balance-sunny
