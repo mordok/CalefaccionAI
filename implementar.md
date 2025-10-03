@@ -1,11 +1,13 @@
-📋 PRÓXIMOS PASOS PARA IMPLEMENTAR:
-PASO 1: COPIAR EL CÓDIGO 📝
-Copia TODO el código del artefacto y:
-Opción A - Archivo único:
-bash# Pega todo en configuration.yaml
-# Reinicia Home Assistant
+**📋 PRÓXIMOS PASOS PARA IMPLEMENTAR:**
+- 1.PASO 1: COPIAR EL CÓDIGO 📝
+- 2.Copia TODO el código del artefacto y:
+- Opción A - Archivo único:
+```bash#
+Pega todo en configuration.yaml
+ Reinicia Home Assistant
+```
 
-Opción B - Archivos separados (RECOMENDADO):
+- Opción B - Archivos separados (RECOMENDADO):
 ```yaml: 
 En configuration.yaml añade:
 sensor: !include sensors.yaml
