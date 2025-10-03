@@ -1,1 +1,2 @@
-# Contenido del archivo configuration.yaml
+homeassistant:
+  packages: !include_dir_named packages/
