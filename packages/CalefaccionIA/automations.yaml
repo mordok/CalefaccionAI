@@ -1,1 +1,275 @@
-# Contenido del archivo automations.yaml
+# Automatizaciones principales del sistema CalefaccionIA
+
+automation:
+  # Activación solar inteligente
+  - id: activacion_solar_geniaair
+    alias: "🌞 Activación Solar GeniaAir"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.potencia_disponible_calefaccion
+        above: 2000
+        for:
+          minutes: 5
+      - platform: state
+        entity_id: binary_sensor.demanda_calefaccion_general
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: input_select.modo_calefaccion_solar
+        state: "Auto Solar Inteligente"
+      - condition: time
+        after: "08:00:00"
+        before: "18:00:00"
+      - condition: numeric_state
+        entity_id: sensor.potencia_disponible_calefaccion
+        above: 1500
+      - condition: state
+        entity_id: binary_sensor.geniaair_activa
+        state: "off"
+      - condition: template
+        value_template: >
+          {% set zonas = states('sensor.zonas_demandando_calor') | int %}
+          {{ zonas >= 1 }}
+    action:
+      - service: switch.turn_on
+        entity_id: switch.contactor_caldera
+      - service: script.gestionar_termostatos_segun_solar
+      - service: notify.telegram_bot_7730409640_4634486477
+        data:
+          title: "🌞 GeniaAir Activada con Energía Solar"
+          message: >
+            💡 Potencia disponible: {{ states('sensor.potencia_disponible_calefaccion') }}W
+            🏠 Zonas demandando: {{ states('sensor.zonas_demandando_calor') }}
+            ⚡ COP estimado: {{ states('sensor.geniaair_cop_real') }}
+            🌡️ Temp exterior: {{ state_attr('weather.forecast_casa', 'temperature') }}°C
+
+  # Precalentamiento predictivo
+  - id: precalentamiento_predictivo_manacor
+    alias: "🌅 Precalentamiento Predictivo Manacor"
+    trigger:
+      - platform: time
+        at: input_datetime.hora_precalentamiento_inicio
+      - platform: state
+        entity_id: binary_sensor.es_hora_pico_solar
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: input_select.modo_calefaccion_solar
+        state: "Auto Solar Inteligente"
+      - condition: numeric_state
+        entity_id: sensor.prediccion_solar_proximas_6h
+        above: 3
+      - condition: or
+        conditions:
+          - condition: numeric_state
+            entity_id: sensor.indice_precalentamiento
+            above: 30
+          - condition: numeric_state
+            entity_id: sensor.power_production_now
+            above: 3000
+    action:
+      - service: script.precalentamiento_inercia_6_zonas
+      - service: notify.telegram_bot_7730409640_4634486477
+        data:
+          title: "🌅 Precalentamiento Predictivo Activado"
+          message: >
+            ☀️ Producción ahora: {{ states('sensor.power_production_now') }}W
+            📊 Índice precalentamiento: {{ states('sensor.indice_precalentamiento') }}%
+            🔮 Predicción 6h: {{ states('sensor.prediccion_solar_proximas_6h') }}kWh
+            🌡️ Temp mín prevista: {{ state_attr('weather.forecast_casa', 'temperature') }}°C
+            Sobrecalentando zonas prioritarias para acumular inercia
+
+  # Acumulación máxima hora pico
+  - id: acumulacion_maxima_hora_pico
+    alias: "☀️ Acumulación Máxima Hora Pico"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.es_hora_pico_solar
+        to: "on"
+      - platform: numeric_state
+        entity_id: sensor.exceso_solar_disponible
+        above: 4500
+    condition:
+      - condition: state
+        entity_id: input_select.modo_calefaccion_solar
+        state: "Auto Solar Inteligente"
+      - condition: numeric_state
+        entity_id: sensor.exceso_solar_disponible
+        above: 4000
+      - condition: time
+        after: "11:00:00"
+        before: "16:00:00"
+    action:
+      - service: script.acumulacion_maxima_inercia_6_zonas
+      - service: notify.telegram_bot_7730409640_4634486477
+        data:
+          title: "☀️ HORA PICO - Acumulación Máxima"
+          message: >
+            ⚡ Exceso solar: {{ states('sensor.exceso_solar_disponible') }}W
+            🔥 Potencia térmica: {{ states('sensor.geniaair_potencia_termica') }}W
+            📈 COP actual: {{ states('sensor.geniaair_cop_real') }}
+            Sobrecalentando TODAS las zonas +{{ states('input_number.sobrecalentamiento_inercia_max') }}°C
+            Objetivo: {{ states('input_number.horas_inercia_objetivo') }}h de inercia
+
+  # Control reactivo consumo
+  - id: control_reactivo_consumo_legrand
+    alias: "⚡ Control Reactivo Consumo LEGRAND"
+    trigger:
+      - platform: state
+        entity_id: sensor.geniaair_consumo_actual
+    condition:
+      - condition: state
+        entity_id: binary_sensor.geniaair_activa
+        state: "on"
+      - condition: state
+        entity_id: input_select.modo_calefaccion_solar
+        state: "Auto Solar Inteligente"
+      - condition: template
+        value_template: >
+          {% set consumo = states('sensor.geniaair_consumo_actual') | float %}
+          {% set disponible = states('sensor.potencia_disponible_calefaccion') | float %}
+          {{ consumo > (disponible + 300) }}
+    action:
+      - service: script.reducir_demanda_termostatos_prioritario
+      - service: notify.telegram_bot_7730409640_4634486477
+        data:
+          title: "⚠️ Ajustando Consumo"
+          message: >
+            GeniaAir consume: {{ states('sensor.geniaair_consumo_actual') }}W
+            Disponible solar: {{ states('sensor.potencia_disponible_calefaccion') }}W
+            Reduciendo termostatos menos prioritarios
+
+  # Apagar sin energía solar suficiente
+  - id: apagar_geniaair_sin_solar
+    alias: "🌙 Apagar GeniaAir Sin Solar Suficiente"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.potencia_disponible_calefaccion
+        below: 1000
+        for:
+          minutes: 10
+      - platform: time
+        at: "18:00:00"
+    condition:
+      - condition: state
+        entity_id: input_select.modo_calefaccion_solar
+        state: "Auto Solar Inteligente"
+      - condition: state
+        entity_id: binary_sensor.geniaair_activa
+        state: "on"
+      - condition: template
+        value_template: >
+          {% set temps = [
+            states('sensor.temperatura_sala_fiable') | float,
+            states('sensor.temperatura_bano_fibaro') | float,
+            states('sensor.temperatura_dormitorio_fiable') | float
+          ] %}
+          {{ temps | min > 18.5 }}
+    action:
+      - service: script.modo_nocturno_6_zonas
+      - delay: "00:02:00"
+      - service: switch.turn_off
+        entity_id: switch.contactor_caldera
+      - service: notify.telegram_bot_7730409640_4634486477
+        data:
+          title: "🌙 GeniaAir en Modo Nocturno"
+          message: >
+            ☀️ Energía solar insuficiente: {{ states('sensor.potencia_disponible_calefaccion') }}W
+            🏠 Usando inercia térmica acumulada
+            🌡️ Temperaturas: Sala {{ states('sensor.temperatura_sala_fiable') }}°C, 
+            Baños {{ states('sensor.temperatura_bano_fibaro') }}°C, 
+            Dormitorio {{ states('sensor.temperatura_dormitorio_fiable') }}°C
+
+  # Protección nocturna anti-frío
+  - id: proteccion_nocturna_antifrio
+    alias: "❄️ Protección Nocturna Anti-Frío"
+    trigger:
+      - platform: template
+        value_template: >
+          {% set temps = [
+            states('sensor.temperatura_sala_fiable') | float,
+            states('sensor.temperatura_bano_fibaro') | float,
+            states('sensor.temperatura_dormitorio_fiable') | float
+          ] %}
+          {{ temps | min < 17 }}
+        for:
+          minutes: 30
+    condition:
+      - condition: time
+        after: "21:00:00"
+        before: "08:00:00"
+      - condition: state
+        entity_id: binary_sensor.geniaair_activa
+        state: "off"
+      - condition: or
+        conditions:
+          - condition: state
+            entity_id: input_boolean.permitir_calefaccion_noche
+            state: "on"
+          - condition: template
+            value_template: >
+              {% set temp_min = [
+                states('sensor.temperatura_sala_fiable') | float,
+                states('sensor.temperatura_bano_fibaro') | float,
+                states('sensor.temperatura_dormitorio_fiable') | float
+              ] | min %}
+              {{ temp_min < 16 }}
+    action:
+      - service: switch.turn_on
+        entity_id: switch.contactor_caldera
+      - service: script.calentamiento_emergencia_zonas_criticas
+      - delay: "00:20:00"
+      - service: switch.turn_off
+        entity_id: switch.contactor_caldera
+      - service: notify.telegram_bot_7730409640_4634486477
+        data:
+          title: "❄️ EMERGENCIA - Calentamiento Nocturno"
+          message: >
+            🚨 Temperatura crítica detectada
+            ⏱️ Calentamiento 20 min desde red
+            💰 Coste estimado: {{ (2.5 * 0.153) | round(2) }}€
+
+  # Optimización curva climática
+  - id: optimizacion_curva_climatica
+    alias: "📊 Optimización Curva Climática"
+    trigger:
+      - platform: time_pattern
+        hours: "/6"
+    condition:
+      - condition: state
+        entity_id: input_select.modo_calefaccion_solar
+        state: "Auto Solar Inteligente"
+    action:
+      - service: script.ajustar_curva_climatica_optima
+
+  # Informe diario
+  - id: informe_diario_geniaair
+    alias: "📊 Informe Diario GeniaAir"
+    trigger:
+      - platform: time
+        at: "21:30:00"
+    action:
+      - service: notify.telegram_bot_7730409640_4634486477
+        data:
+          title: "📊 Resumen Diario - GeniaAir Manacor"
+          message: >
+            🌞 **PRODUCCIÓN SOLAR**
+            Producción hoy: {{ states('sensor.energy_production_today') }}kWh
+            Exceso máximo: {{ state_attr('sensor.exceso_solar_disponible', 'max_value') | round(0) }}W
+            
+            ⚡ **CONSUMO CALEFACCIÓN**
+            Energía consumida: {{ states('sensor.geniaair_energia_consumida_hoy') }}kWh
+            COP medio: {{ states('sensor.geniaair_cop_medio_7_dias') }}
+            
+            💰 **AHORRO**
+            Ahorro estimado hoy: {{ states('sensor.ahorro_economico_hoy') }}€
+            Eficiencia solar media: {{ states('sensor.eficiencia_solar_actual') }}%
+            
+            🏠 **ZONAS**
+            Zonas activas máximo: {{ states('sensor.zonas_demandando_calor') }}
+            Temp media sala: {{ states('sensor.temperatura_sala_fiable') }}°C
+            
+            🌡️ **EXTERIOR**
+            Temp mín/máx: {{ state_attr('weather.forecast_casa', 'temperature') }}°C
+            
+            Estado sistema: {{ states('sensor.estado_sistema_optimo') }}
