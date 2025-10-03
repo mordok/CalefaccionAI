@@ -6,7 +6,8 @@ bash# Pega todo en configuration.yaml
 # Reinicia Home Assistant
 
 Opción B - Archivos separados (RECOMENDADO):
-yaml# En configuration.yaml añade:
+```yaml: 
+En configuration.yaml añade:
 sensor: !include sensors.yaml
 automation: !include automations.yaml
 script: !include scripts.yaml
@@ -14,7 +15,8 @@ input_number: !include input_numbers.yaml
 input_select: !include input_selects.yaml
 input_datetime: !include input_datetimes.yaml
 input_boolean: !include input_booleans.yaml
-binary_sensor: !include binary_sensors.yaml
+binary_sensor: !include binary_sensors.yaml'
+```
 Luego crea los archivos correspondientes con las secciones del código.
 
 PASO 2: VERIFICAR ENTIDADES ✅
