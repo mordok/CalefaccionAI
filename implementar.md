@@ -2,7 +2,7 @@
 - 1.PASO 1: COPIAR EL CÓDIGO 📝
 - 2.Copia TODO el código del artefacto y:
 - Opción A - Archivo único:
-```bash#
+```bash:
 Pega todo en configuration.yaml
  Reinicia Home Assistant
 ```
@@ -24,39 +24,45 @@ Luego crea los archivos correspondientes con las secciones del código.
 PASO 2: VERIFICAR ENTIDADES ✅
 Antes de reiniciar, verifica que existen estas entidades en tu HA:
 CRÍTICAS (deben existir):
-yaml# Aerotermia
+```yaml:
+Aerotermia
 sensor.circuito_2  ✓
 switch.contactor_caldera  ✓
+```
 
-# Termostatos
-climate.temostatov_sala  ✓
-climate.temostatov_banos  ✓
-climate.termostato_dormitorio  ✓
-climate.temostatov_cocina  ✓
-climate.temostatov_entrada  ✓
-climate.temostatov_hab_peq  ✓
+**Termostatos**
+
+- climate.temostatov_sala  ✓
+- climate.temostatov_banos  ✓
+- climate.termostato_dormitorio  ✓
+- climate.temostatov_cocina  ✓
+- climate.temostatov_entrada  ✓
+- climate.temostatov_hab_peq  ✓
 
 # Fronius
-sensor.solarnet_energia_fotovoltaica  ✓
-sensor.solarnet_carga_de_energia_consumida  ✓
+- sensor.solarnet_energia_fotovoltaica  ✓
+- sensor.solarnet_carga_de_energia_consumida  ✓
 
 # Forecast.Solar
-sensor.power_production_now  ✓
-sensor.energy_production_today_remaining  ✓
-sensor.power_highest_peak_time_today  ✓
+- sensor.power_production_now  ✓
+- sensor.energy_production_today_remaining  ✓
+- sensor.power_highest_peak_time_today  ✓
 
 # Met.no
-weather.forecast_casa  ✓
+- weather.forecast_casa  ✓
 Si alguna NO existe, busca en Herramientas Desarrollador → Estados el nombre correcto y cámbialo en el código.
 
 PASO 3: AJUSTAR TEMPERATURAS BASE 🌡️
+
 Personaliza según tus preferencias en la sección input_number:
-yamltemp_base_sala: 21°C        # Tu preferencia sala
+```yaml:
+temp_base_sala: 21°C        # Tu preferencia sala
 temp_base_banos: 22°C       # Baños más calientes
 temp_base_dormitorio: 20°C  # Dormitorio más fresco
 temp_base_cocina: 19°C      # Cocina uso puntual
 temp_base_entrada: 18°C     # Entrada zona paso
 temp_base_hab_peq: 19°C     # Habitación pequeña
+```
 
 # Inercia térmica
 sobrecalentamiento_inercia_max: 2.5°C  # Cuánto sobrecalentar
