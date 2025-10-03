@@ -1,1 +1,325 @@
-# Contenido del archivo sensors.yaml
+# Cont# Sensores templates, integración solar, COP, demanda, eficiencia y estados
+
+sensor:
+  # Consumo y energía GeniaAir (LEGRAND)
+  - platform: template
+    sensors:
+      geniaair_consumo_actual:
+        friendly_name: "GeniaAir Consumo Actual"
+        unit_of_measurement: "W"
+        device_class: power
+        value_template: "{{ states('sensor.circuito_2') | float(0) }}"
+        availability_template: "{{ states('sensor.circuito_2') not in ['unknown', 'unavailable'] }}"
+  - platform: integration
+    source: sensor.circuito_2
+    name: "GeniaAir Energia Consumida Hoy"
+    unit_prefix: k
+    round: 2
+    method: left
+
+  # Solar Fronius y potencia disponible
+  - platform: template
+    sensors:
+      exceso_solar_disponible:
+        friendly_name: "Exceso Solar Disponible"
+        unit_of_measurement: "W"
+        device_class: power
+        value_template: >
+          {% set produccion = states('sensor.solarnet_energia_fotovoltaica') | float(0) %}
+          {% set consumo = states('sensor.solarnet_carga_de_energia_consumida') | float(0) %}
+          {% set exceso = produccion - consumo %}
+          {{ exceso if exceso > 0 else 0 }}
+        icon_template: >
+          {% set exceso = states('sensor.exceso_solar_disponible') | float(0) %}
+          {% if exceso > 3000 %}
+            mdi:solar-power
+          {% elif exceso > 1500 %}
+            mdi:solar-panel
+          {% else %}
+            mdi:solar-panel-large
+          {% endif %}
+      potencia_disponible_calefaccion:
+        friendly_name: "Potencia Disponible Calefacción"
+        unit_of_measurement: "W"
+        value_template: >
+          {% set exceso = states('sensor.exceso_solar_disponible') | float(0) %}
+          {% set margen = states('input_number.margen_seguridad_solar') | float(400) %}
+          {% set disponible = exceso - margen %}
+          {{ disponible if disponible > 0 else 0 }}
+
+  # COP real y potencia térmica
+  - platform: template
+    sensors:
+      geniaair_cop_real:
+        friendly_name: "GeniaAir COP Real"
+        value_template: >
+          {% set consumo_electrico = states('sensor.micasa_device_0_geniaair_mono_consumed_electrical_energy_heating') | float(0) %}
+          {% set calor_generado = consumo_electrico * 3.8 %}
+          {% set temp_exterior = state_attr('weather.forecast_casa', 'temperature') | float(20) %}
+          {% set temp_impulsion = states('sensor.micasa_circuit_0_current_flow_temperature') | float(22) %}
+          {% if temp_exterior >= 20 %}
+            {% set cop_base = 5.2 %}
+          {% elif temp_exterior >= 15 %}
+            {% set cop_base = 4.8 %}
+          {% elif temp_exterior >= 10 %}
+            {% set cop_base = 4.2 %}
+          {% elif temp_exterior >= 7 %}
+            {% set cop_base = 3.8 %}
+          {% elif temp_exterior >= 2 %}
+            {% set cop_base = 3.2 %}
+          {% elif temp_exterior >= -7 %}
+            {% set cop_base = 2.6 %}
+          {% else %}
+            {% set cop_base = 2.1 %}
+          {% endif %}
+          {% if temp_impulsion > 45 %}
+            {% set factor_temp = 0.90 %}
+          {% elif temp_impulsion > 40 %}
+            {% set factor_temp = 0.95 %}
+          {% else %}
+            {% set factor_temp = 1.0 %}
+          {% endif %}
+          {% set cop_final = cop_base * factor_temp %}
+          {{ cop_final | round(2) }}
+        icon_template: >
+          {% set cop = states('sensor.geniaair_cop_real') | float %}
+          {% if cop > 4.5 %}
+            mdi:certificate
+          {% elif cop > 3.5 %}
+            mdi:check-circle
+          {% elif cop > 2.5 %}
+            mdi:alert-circle
+          {% else %}
+            mdi:alert
+          {% endif %}
+      geniaair_potencia_termica:
+        friendly_name: "GeniaAir Potencia Térmica"
+        unit_of_measurement: "W"
+        device_class: power
+        value_template: >
+          {% set consumo = states('sensor.geniaair_consumo_actual') | float(0) %}
+          {% set cop = states('sensor.geniaair_cop_real') | float(3.5) %}
+          {{ (consumo * cop) | round(0) }}
+      geniaair_estado_detallado:
+        friendly_name: "Estado GeniaAir"
+        value_template: >
+          {% set estado_circuito = states('sensor.micasa_circuit_0_state') %}
+          {% set consumo = states('sensor.geniaair_consumo_actual') | float(0) %}
+          {% if estado_circuito == 'STANDBY' and consumo < 100 %}
+            Apagada
+          {% elif estado_circuito == 'STANDBY' and consumo < 500 %}
+            Standby
+          {% elif consumo < 2000 %}
+            Calentando Bajo ({{ (consumo/80)|round(0) }}%)
+          {% elif consumo < 4500 %}
+            Calentando Medio ({{ (consumo/80)|round(0) }}%)
+          {% elif consumo < 7000 %}
+            Calentando Alto ({{ (consumo/80)|round(0) }}%)
+          {% else %}
+            Máxima Potencia ({{ (consumo/80)|round(0) }}%)
+          {% endif %}
+        icon_template: >
+          {% set consumo = states('sensor.geniaair_consumo_actual') | float(0) %}
+          {% if consumo < 100 %}
+            mdi:heat-pump-outline
+          {% elif consumo < 2000 %}
+            mdi:heat-pump
+          {% else %}
+            mdi:fire
+          {% endif %}
+
+  # Temperaturas fiables por fallback y demanda térmica
+  - platform: template
+    sensors:
+      temperatura_sala_fiable:
+        friendly_name: "Temperatura Sala (Fiable)"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        value_template: >
+          {% set primario = states('sensor.temperatura_salon_fibaro') | float(0) %}
+          {% set secundario = states('sensor.temperatura_salon_dimer_tejas') | float(0) %}
+          {% if primario > 10 and primario < 35 %}
+            {{ primario }}
+          {% elif secundario > 10 and secundario < 35 %}
+            {{ secundario }}
+          {% else %}
+            {{ states('input_number.temp_base_sala') }}
+          {% endif %}
+      temperatura_entrada_fiable:
+        friendly_name: "Temperatura Entrada (Fiable)"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        value_template: >
+          {% set primario = states('sensor.movimiento_sensor_fibaro_air_temperature') | float(0) %}
+          {% set secundario = states('sensor.entrada_pasillo_air_temperature_3') | float(0) %}
+          {% if primario > 10 and primario < 35 %}
+            {{ primario }}
+          {% elif secundario > 10 and secundario < 35 %}
+            {{ secundario }}
+          {% else %}
+            {{ states('input_number.temp_base_entrada') }}
+          {% endif %}
+      temperatura_hab_peq_fiable:
+        friendly_name: "Temperatura Hab Pequeña (Fiable)"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        value_template: >
+          {% set primario = states('sensor.temperatura_hpeque') | float(0) %}
+          {% set secundario = states('sensor.temperatura_hpeque_qubino') | float(0) %}
+          {% if primario > 10 and primario < 35 %}
+            {{ primario }}
+          {% elif secundario > 10 and secundario < 35 %}
+            {{ secundario }}
+          {% else %}
+            {{ states('input_number.temp_base_hab_peq') }}
+          {% endif %}
+      temperatura_dormitorio_fiable:
+        friendly_name: "Temperatura Dormitorio (Fiable)"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        value_template: >
+          {% set primario = states('sensor.temperatura_dormitorio_termostato') | float(0) %}
+          {% set secundario = states('sensor.temperatura_dormitorio_fibaro') | float(0) %}
+          {% set terciario = states('sensor.temperatura_aseo_dormitorio') | float(0) %}
+          {% if primario > 10 and primario < 35 %}
+            {{ primario }}
+          {% elif secundario > 10 and secundario < 35 %}
+            {{ secundario }}
+          {% elif terciario > 10 and terciario < 35 %}
+            {{ terciario }}
+          {% else %}
+            {{ states('input_number.temp_base_dormitorio') }}
+          {% endif %}
+      zonas_demandando_calor:
+        friendly_name: "Zonas Demandando Calor"
+        value_template: >
+          {% set zonas = 0 %}
+          {% if is_state('climate.temostatov_sala', 'heat') %}{% set zonas = zonas + 1 %}{% endif %}
+          {% if is_state('climate.temostatov_banos', 'heat') %}{% set zonas = zonas + 1 %}{% endif %}
+          {% if is_state('climate.termostato_dormitorio', 'heat') %}{% set zonas = zonas + 1 %}{% endif %}
+          {% if is_state('climate.temostatov_cocina', 'heat') %}{% set zonas = zonas + 1 %}{% endif %}
+          {% if is_state('climate.temostatov_entrada', 'heat') %}{% set zonas = zonas + 1 %}{% endif %}
+          {% if is_state('climate.temostatov_hab_peq', 'heat') %}{% set zonas = zonas + 1 %}{% endif %}
+          {{ zonas }}
+        icon_template: >
+          {% set zonas = states('sensor.zonas_demandando_calor') | int %}
+          {% if zonas >= 5 %}
+            mdi:home-thermometer
+          {% elif zonas >= 3 %}
+            mdi:thermometer
+          {% elif zonas >= 1 %}
+            mdi:thermometer-low
+          {% else %}
+            mdi:thermometer-off
+          {% endif %}
+      demanda_termica_total:
+        friendly_name: "Demanda Térmica Total"
+        unit_of_measurement: "W"
+        value_template: >
+          {% set zonas = states('sensor.zonas_demandando_calor') | int %}
+          {% set temp_ext = state_attr('weather.forecast_casa', 'temperature') | float(20) %}
+          {% if temp_ext > 15 %}
+            {% set potencia_zona = 1000 %}
+          {% elif temp_ext > 10 %}
+            {% set potencia_zona = 1400 %}
+          {% elif temp_ext > 5 %}
+            {% set potencia_zona = 1800 %}
+          {% else %}
+            {% set potencia_zona = 2200 %}
+          {% endif %}
+          {{ (zonas * potencia_zona) | round(0) }}
+
+  # Forecast.Solar y predicciones
+  - platform: template
+    sensors:
+      prediccion_solar_proximas_6h:
+        friendly_name: "Predicción Solar Próximas 6h"
+        unit_of_measurement: "kWh"
+        value_template: >
+          {% set restante_hoy = states('sensor.energy_production_today_remaining') | float(0) %}
+          {% set ahora = now().hour %}
+          {% if ahora < 9 %}
+            {% set factor = 0.3 %}
+          {% elif ahora < 12 %}
+            {% set factor = 0.8 %}
+          {% elif ahora < 15 %}
+            {% set factor = 1.0 %}
+          {% elif ahora < 18 %}
+            {% set factor = 0.6 %}
+          {% else %}
+            {% set factor = 0.1 %}
+          {% endif %}
+          {{ (restante_hoy * factor) | round(2) }}
+      indice_precalentamiento:
+        friendly_name: "Índice Precalentamiento"
+        unit_of_measurement: "%"
+        value_template: >
+          {% set temp_actual = state_attr('weather.forecast_casa', 'temperature') | float(20) %}
+          {% set nubes = state_attr('weather.forecast_casa', 'cloud_coverage') | float(0) %}
+          {% set prediccion_solar = states('sensor.prediccion_solar_proximas_6h') | float(0) %}
+          {% set factor_frio = ((18 - temp_actual) / 10 * 100) if temp_actual < 18 else 0 %}
+          {% set factor_nubes = nubes %}
+          {% set factor_solar_bajo = ((5 - prediccion_solar) / 5 * 100) if prediccion_solar < 5 else 0 %}
+          {% set indice = ((factor_frio + factor_nubes + factor_solar_bajo) / 3) %}
+          {{ [indice, 100] | min | round(0) }}
+
+  # Estadísticas
+  - platform: statistics
+    name: "GeniaAir COP Medio 7 Días"
+    entity_id: sensor.geniaair_cop_real
+    state_characteristic: mean
+    max_age:
+      days: 7
+    precision: 2
+  - platform: statistics
+    name: "Consumo Medio Hora"
+    entity_id: sensor.geniaair_consumo_actual
+    state_characteristic: mean
+    max_age:
+      hours: 1
+    precision: 0
+
+  # Métricas de eficiencia y estado óptimo
+  - platform: template
+    sensors:
+      eficiencia_solar_actual:
+        friendly_name: "Eficiencia Solar Actual"
+        unit_of_measurement: "%"
+        value_template: >
+          {% set consumo = states('sensor.geniaair_consumo_actual') | float(0) %}
+          {% set exceso = states('sensor.exceso_solar_disponible') | float(0) %}
+          {% if consumo > 100 %}
+            {% set eficiencia = (exceso / consumo * 100) %}
+            {{ [eficiencia, 100] | min | round(1) }}
+          {% else %}
+            100
+          {% endif %}
+      ahorro_economico_hoy:
+        friendly_name: "Ahorro Económico Hoy"
+        unit_of_measurement: "€"
+        value_template: >
+          {% set energia_consumida = states('sensor.geniaair_energia_consumida_hoy') | float(0) %}
+          {% set eficiencia = states('sensor.eficiencia_solar_actual') | float(0) / 100 %}
+          {% set precio_kwh = 0.153 %}
+          {% set ahorro = energia_consumida * eficiencia * precio_kwh %}
+          {{ ahorro | round(2) }}
+      estado_sistema_optimo:
+        friendly_name: "Estado Sistema"
+        value_template: >
+          {% set exceso = states('sensor.exceso_solar_disponible') | int %}
+          {% set consumo = states('sensor.geniaair_consumo_actual') | int %}
+          {% set cop = states('sensor.geniaair_cop_real') | float %}
+          {% set temp = state_attr('weather.forecast_casa', 'temperature') | float %}
+          {% if consumo < 100 %}
+            Standby
+          {% elif exceso > consumo + 500 %}
+            ⭐ Óptimo - 100% Solar
+          {% elif cop > 4.5 and temp > 15 %}
+            Excelente - Alta Eficiencia
+          {% elif cop > 3.5 %}
+            Bueno - Eficiencia Normal
+          {% elif cop > 2.5 %}
+            Aceptable - Baja Temperatura
+          {% else %}
+            ⚠️ Revisar - COP Bajo
+          {% endif %}enido del archivo sensors.yaml
