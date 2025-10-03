@@ -1,17 +1,17 @@
 💡 CONSEJOS DE USO:
 PRIMEROS DÍAS:
 
-Deja que aprenda (3-5 días observando)
-No cambies temperaturas base aún
-Observa las notificaciones Telegram
-Revisa el histórico cada día
+- Deja que aprenda (3-5 días observando)
+- No cambies temperaturas base aún
+- Observa las notificaciones Telegram
+- Revisa el histórico cada día
 
 AJUSTE FINO (después 1 semana):
 
-Si hace frío por la noche → Sube sobrecalentamiento_inercia_max a 3°C
-Si hace demasiado calor mediodía → Baja a 2°C
-Si alguna zona siempre fría → Sube su temp_base_XXX
-Si consume mucho de red → Sube margen_seguridad_solar a 500W
+- Si hace frío por la noche → Sube sobrecalentamiento_inercia_max a 3°C
+- Si hace demasiado calor mediodía → Baja a 2°C
+- Si alguna zona siempre fría → Sube su temp_base_XXX
+- Si consume mucho de red → Sube margen_seguridad_solar a 500W
 
 OPTIMIZACIÓN (después 1 mes):
 
