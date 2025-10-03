@@ -1,1 +1,346 @@
-# Contenido del archivo scripts.yaml
+# Scripts para gestión inteligente por zonas, reducción, precalentamiento, curva climática...
+
+script:
+  gestionar_termostatos_segun_solar:
+    alias: "Gestionar Termostatos según Energía Solar"
+    sequence:
+      - variables:
+          exceso: "{{ states('sensor.exceso_solar_disponible') | int }}"
+          consumo: "{{ states('sensor.geniaair_consumo_actual') | int }}"
+          cop: "{{ states('sensor.geniaair_cop_real') | float }}"
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ exceso > 4500 }}"
+            sequence:
+              - service: script.acumulacion_maxima_inercia_6_zonas
+          - conditions:
+              - condition: template
+                value_template: "{{ exceso > 3000 }}"
+            sequence:
+              - service: script.activar_zonas_prioritarias_plus
+          - conditions:
+              - condition: template
+                value_template: "{{ exceso > 2000 }}"
+            sequence:
+              - service: script.activar_zonas_prioritarias
+          - conditions:
+              - condition: template
+                value_template: "{{ exceso > 1500 }}"
+            sequence:
+              - service: script.activar_zonas_criticas
+          default:
+            - service: script.modo_ahorro_termostatos
+
+  precalentamiento_inercia_6_zonas:
+    alias: "Precalentamiento Inercia 6 Zonas"
+    sequence:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_sala
+        data:
+          temperature: >
+            {% set base = states('input_number.temp_base_sala') | float %}
+            {% set sobrecalentamiento = states('input_number.sobrecalentamiento_inercia_max') | float %}
+            {{ base + sobrecalentamiento }}
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_banos
+        data:
+          temperature: >
+            {% set base = states('input_number.temp_base_banos') | float %}
+            {% set sobrecalentamiento = states('input_number.sobrecalentamiento_inercia_max') | float %}
+            {{ base + sobrecalentamiento }}
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.termostato_dormitorio
+        data:
+          temperature: >
+            {% set base = states('input_number.temp_base_dormitorio') | float %}
+            {% set sobrecalentamiento = states('input_number.sobrecalentamiento_inercia_max') | float * 0.8 %}
+            {{ base + sobrecalentamiento }}
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_cocina
+        data:
+          temperature: >
+            {% set base = states('input_number.temp_base_cocina') | float %}
+            {% set sobrecalentamiento = states('input_number.sobrecalentamiento_inercia_max') | float * 0.5 %}
+            {{ base + sobrecalentamiento }}
+
+  acumulacion_maxima_inercia_6_zonas:
+    alias: "Acumulación Máxima Inercia 6 Zonas"
+    sequence:
+      - service: climate.set_temperature
+        target:
+          entity_id:
+            - climate.temostatov_sala
+            - climate.temostatov_banos
+            - climate.termostato_dormitorio
+            - climate.temostatov_cocina
+            - climate.temostatov_entrada
+            - climate.temostatov_hab_peq
+        data:
+          temperature: >
+            {% set entity = this.entity_id %}
+            {% if 'sala' in entity %}
+              {% set base = states('input_number.temp_base_sala') | float %}
+            {% elif 'banos' in entity %}
+              {% set base = states('input_number.temp_base_banos') | float %}
+            {% elif 'dormitorio' in entity %}
+              {% set base = states('input_number.temp_base_dormitorio') | float %}
+            {% elif 'cocina' in entity %}
+              {% set base = states('input_number.temp_base_cocina') | float %}
+            {% elif 'entrada' in entity %}
+              {% set base = states('input_number.temp_base_entrada') | float %}
+            {% else %}
+              {% set base = states('input_number.temp_base_hab_peq') | float %}
+            {% endif %}
+            {% set sobrecalentamiento = states('input_number.sobrecalentamiento_inercia_max') | float %}
+            {{ base + sobrecalentamiento }}
+
+  activar_zonas_prioritarias_plus:
+    alias: "Activar Zonas Prioritarias Plus"
+    sequence:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_sala
+        data:
+          temperature: >
+            {% set base = states('input_number.temp_base_sala') | float %}
+            {{ base + 1.5 }}
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_banos
+        data:
+          temperature: >
+            {% set base = states('input_number.temp_base_banos') | float %}
+            {{ base + 1.5 }}
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.termostato_dormitorio
+        data:
+          temperature: >
+            {% set base = states('input_number.temp_base_dormitorio') | float %}
+            {{ base + 1.0 }}
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_cocina
+        data:
+          temperature: >
+            {% set base = states('input_number.temp_base_cocina') | float %}
+            {{ base + 0.5 }}
+      - service: script.restaurar_temp_zonas_secundarias
+
+  activar_zonas_prioritarias:
+    alias: "Activar Zonas Prioritarias"
+    sequence:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_sala
+        data:
+          temperature: "{{ states('input_number.temp_base_sala') | float }}"
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_banos
+        data:
+          temperature: "{{ states('input_number.temp_base_banos') | float }}"
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.termostato_dormitorio
+        data:
+          temperature: "{{ states('input_number.temp_base_dormitorio') | float }}"
+      - service: climate.set_temperature
+        target:
+          entity_id:
+            - climate.temostatov_cocina
+            - climate.temostatov_entrada
+            - climate.temostatov_hab_peq
+        data:
+          temperature: >
+            {% set entity = this.entity_id %}
+            {% if 'cocina' in entity %}
+              {% set base = states('input_number.temp_base_cocina') | float %}
+            {% elif 'entrada' in entity %}
+              {% set base = states('input_number.temp_base_entrada') | float %}
+            {% else %}
+              {% set base = states('input_number.temp_base_hab_peq') | float %}
+            {% endif %}
+            {{ base - 1 }}
+
+  activar_zonas_criticas:
+    alias: "Activar Solo Zonas Críticas"
+    sequence:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_sala
+        data:
+          temperature: "{{ states('input_number.temp_base_sala') | float }}"
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_banos
+        data:
+          temperature: "{{ states('input_number.temp_base_banos') | float }}"
+      - service: climate.set_temperature
+        target:
+          entity_id:
+            - climate.termostato_dormitorio
+            - climate.temostatov_cocina
+            - climate.temostatov_entrada
+            - climate.temostatov_hab_peq
+        data:
+          temperature: >
+            {% set entity = this.entity_id %}
+            {% if 'dormitorio' in entity %}
+              {% set base = states('input_number.temp_base_dormitorio') | float %}
+            {% elif 'cocina' in entity %}
+              {% set base = states('input_number.temp_base_cocina') | float %}
+            {% elif 'entrada' in entity %}
+              {% set base = states('input_number.temp_base_entrada') | float %}
+            {% else %}
+              {% set base = states('input_number.temp_base_hab_peq') | float %}
+            {% endif %}
+            {{ base - 1.5 }}
+
+  modo_ahorro_termostatos:
+    alias: "Modo Ahorro Termostatos"
+    sequence:
+      - service: climate.set_temperature
+        target:
+          entity_id:
+            - climate.temostatov_sala
+            - climate.temostatov_banos
+            - climate.termostato_dormitorio
+            - climate.temostatov_cocina
+            - climate.temostatov_entrada
+            - climate.temostatov_hab_peq
+        data:
+          temperature: >
+            {% set entity = this.entity_id %}
+            {% if 'sala' in entity %}
+              {% set base = states('input_number.temp_base_sala') | float %}
+            {% elif 'banos' in entity %}
+              {% set base = states('input_number.temp_base_banos') | float %}
+            {% elif 'dormitorio' in entity %}
+              {% set base = states('input_number.temp_base_dormitorio') | float %}
+            {% elif 'cocina' in entity %}
+              {% set base = states('input_number.temp_base_cocina') | float %}
+            {% elif 'entrada' in entity %}
+              {% set base = states('input_number.temp_base_entrada') | float %}
+            {% else %}
+              {% set base = states('input_number.temp_base_hab_peq') | float %}
+            {% endif %}
+            {% set reduccion = 1 if 'sala' in entity or 'banos' in entity else 2 %}
+            {{ base - reduccion }}
+
+  modo_nocturno_6_zonas:
+    alias: "Modo Nocturno 6 Zonas"
+    sequence:
+      - service: climate.set_temperature
+        target:
+          entity_id:
+            - climate.temostatov_sala
+            - climate.temostatov_banos
+            - climate.termostato_dormitorio
+        data:
+          temperature: >
+            {% set entity = this.entity_id %}
+            {% if 'sala' in entity %}
+              {% set base = states('input_number.temp_base_sala') | float %}
+            {% elif 'banos' in entity %}
+              {% set base = states('input_number.temp_base_banos') | float %}
+            {% else %}
+              {% set base = states('input_number.temp_base_dormitorio') | float %}
+            {% endif %}
+            {{ base - 1.5 }}
+      - service: climate.set_temperature
+        target:
+          entity_id:
+            - climate.temostatov_cocina
+            - climate.temostatov_entrada
+            - climate.temostatov_hab_peq
+        data:
+          temperature: >
+            {% set entity = this.entity_id %}
+            {% if 'cocina' in entity %}
+              {% set base = states('input_number.temp_base_cocina') | float %}
+            {% elif 'entrada' in entity %}
+              {% set base = states('input_number.temp_base_entrada') | float %}
+            {% else %}
+              {% set base = states('input_number.temp_base_hab_peq') | float %}
+            {% endif %}
+            {{ base - 2.5 }}
+
+  calentamiento_emergencia_zonas_criticas:
+    alias: "Calentamiento Emergencia Zonas Críticas"
+    sequence:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_sala
+        data:
+          temperature: 19
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_banos
+        data:
+          temperature: 20
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.termostato_dormitorio
+        data:
+          temperature: 18
+
+  reducir_demanda_termostatos_prioritario:
+    alias: "Reducir Demanda Termostatos Prioritario"
+    sequence:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_hab_peq
+        data:
+          temperature: >
+            {% set base = states('input_number.temp_base_hab_peq') | float %}
+            {{ base - 2 }}
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_entrada
+        data:
+          temperature: >
+            {% set base = states('input_number.temp_base_entrada') | float %}
+            {{ base - 1.5 }}
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_cocina
+        data:
+          temperature: >
+            {% set base = states('input_number.temp_base_cocina') | float %}
+            {{ base - 1 }}
+
+  restaurar_temp_zonas_secundarias:
+    alias: "Restaurar Temperaturas Zonas Secundarias"
+    sequence:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_entrada
+        data:
+          temperature: "{{ states('input_number.temp_base_entrada') | float }}"
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.temostatov_hab_peq
+        data:
+          temperature: "{{ states('input_number.temp_base_hab_peq') | float }}"
+
+  ajustar_curva_climatica_optima:
+    alias: "Ajustar Curva Climática Óptima"
+    sequence:
+      - variables:
+          temp_exterior: "{{ state_attr('weather.forecast_casa', 'temperature') | float }}"
+          cop_medio: "{{ states('sensor.geniaair_cop_medio_7_dias') | float }}"
+      - condition: template
+        value_template: "{{ cop_medio < 3.5 }}"
+      - service: number.set_value
+        target:
+          entity_id: number.micasa_circuit_0_heating_curve
+        data:
+          value: >
+            {% set curva_actual = states('number.micasa_circuit_0_heating_curve') | float %}
+            {{ [curva_actual - 0.1, 0.3] | max }}
