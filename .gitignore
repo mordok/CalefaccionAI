@@ -1,0 +1,17 @@
+# Home Assistant
+*.db
+*.db-shm
+*.db-wal
+*.log
+storage/
+deps/
+secrets.yaml
+.esphome/
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+*.pyo
+*.swp
+*.swo
+.DS_Store
