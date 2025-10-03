@@ -1,1 +1,100 @@
-# Contenido del archivo inputs.yaml
+input_number:
+  potencia_nominal_geniaair:
+    name: "Potencia Nominal GeniaAir"
+    min: 6000
+    max: 9000
+    step: 100
+    initial: 8000
+    unit_of_measurement: "W"
+  sobrecalentamiento_inercia_max:
+    name: "Sobrecalentamiento Inercia Máximo"
+    min: 1.0
+    max: 4.0
+    step: 0.5
+    initial: 2.5
+    unit_of_measurement: "°C"
+  horas_inercia_objetivo:
+    name: "Horas Inercia Objetivo"
+    min: 3
+    max: 8
+    step: 0.5
+    initial: 5
+    unit_of_measurement: "h"
+  temp_base_sala:
+    name: "Temperatura Base Sala"
+    min: 18
+    max: 24
+    step: 0.5
+    initial: 21
+    unit_of_measurement: "°C"
+  temp_base_banos:
+    name: "Temperatura Base Baños"
+    min: 18
+    max: 25
+    step: 0.5
+    initial: 22
+    unit_of_measurement: "°C"
+  temp_base_dormitorio:
+    name: "Temperatura Base Dormitorio"
+    min: 16
+    max: 23
+    step: 0.5
+    initial: 20
+    unit_of_measurement: "°C"
+  temp_base_cocina:
+    name: "Temperatura Base Cocina"
+    min: 16
+    max: 23
+    step: 0.5
+    initial: 19
+    unit_of_measurement: "°C"
+  temp_base_entrada:
+    name: "Temperatura Base Entrada"
+    min: 16
+    max: 22
+    step: 0.5
+    initial: 18
+    unit_of_measurement: "°C"
+  temp_base_hab_peq:
+    name: "Temperatura Base Habitación Pequeña"
+    min: 16
+    max: 23
+    step: 0.5
+    initial: 19
+    unit_of_measurement: "°C"
+  margen_seguridad_solar:
+    name: "Margen Seguridad Solar"
+    min: 200
+    max: 1000
+    step: 50
+    initial: 400
+    unit_of_measurement: "W"
+
+input_select:
+  modo_calefaccion_solar:
+    name: "Modo Calefacción Solar"
+    options:
+      - "Auto Solar Inteligente"
+      - "Manual Completo"
+      - "Solo Emergencia"
+      - "Mantenimiento"
+      - "Vacaciones"
+    initial: "Auto Solar Inteligente"
+
+input_datetime:
+  hora_precalentamiento_inicio:
+    name: "Inicio Precalentamiento"
+    has_date: false
+    has_time: true
+    initial: "08:30"
+  hora_precalentamiento_fin:
+    name: "Fin Precalentamiento"
+    has_date: false
+    has_time: true
+    initial: "14:30"
+
+input_boolean:
+  permitir_calefaccion_noche:
+    name: "Permitir Calefacción Nocturna"
+    initial: false
+    icon: mdi:weather-night
