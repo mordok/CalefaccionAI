@@ -1,17 +1,45 @@
-# Home Assistant
+# Secretos y credenciales
+secrets.yaml
+*.secret
+*.key
+
+# Bases de datos
 *.db
 *.db-shm
 *.db-wal
+home-assistant_v2.db*
+
+# Logs
 *.log
-storage/
+home-assistant.log*
+
+# Storage interno HA
+.storage/
+.cloud/
+tts/
 deps/
-secrets.yaml
-.esphome/
-.idea/
-.vscode/
+
+# Backups
+backups/
+*.backup
+*.tar
+*.gz
+
+# Python
 __pycache__/
 *.pyc
-*.pyo
+venv/
+.venv/
+
+# Editores
+.vscode/
+.idea/
 *.swp
-*.swo
+
+# Sistema operativo
 .DS_Store
+Thumbs.db
+
+# Mantener ejemplos
+!secrets.yaml.example
+!examples/**
