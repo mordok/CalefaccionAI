@@ -71,3 +71,73 @@ homeassistant:
   packages: !include_dir_named packages/
 
 # 5. Reiniciar Home Assistant
+```
+
+📘 Ver Guía Completa de Instalación
+
+⚙️ Configuración
+Modos de Funcionamiento
+ModoDescripciónAuto Solar InteligenteGestión automática completa ⭐Manual CompletoControl manual de termostatosSolo EmergenciaSolo protección anti-fríoMantenimientoSistema pausadoVacacionesModo ahorro máximo
+Prioridades de Zonas
+
+🏆 Sala (21°C)
+🚿 Baños (22°C)
+🛏️ Dormitorio (20°C)
+🍳 Cocina (19°C)
+🚪 Entrada (18°C)
+🛋️ Habitación pequeña (19°C)
+
+
+📖 Documentación
+
+📘 Instalación Completa
+⚙️ Configuración Avanzada
+🔧 Troubleshooting
+📊 Valores COP
+📝 Changelog
+
+
+💡 Estructura del Proyecto
+CalefaccionAI/
+├── packages/CalefaccionIA/
+│   ├── inputs.yaml          # Configuración usuario
+│   ├── sensors.yaml         # Sensores template
+│   ├── binary_sensors.yaml  # Estados binarios
+│   ├── automations.yaml     # Automatizaciones
+│   ├── scripts.yaml         # Scripts modulares
+│   └── dashboard.md         # Dashboard Lovelace
+├── docs/                    # Documentación
+├── secrets.yaml.example     # Plantilla secretos
+└── README.md               # Este archivo
+
+🤝 Contribuir
+¡Las contribuciones son bienvenidas!
+
+Fork el proyecto
+Crea tu rama (git checkout -b feature/MejoraCOP)
+Commit cambios (git commit -m 'feat: Mejora cálculo COP')
+Push (git push origin feature/MejoraCOP)
+Abre un Pull Request
+
+
+📊 Estadísticas
+
+Automatizaciones: 7 principales
+Scripts: 12 modulares
+Sensores: 25+
+Zonas: 6 con priorización
+Ahorro estimado: 40-60%
+
+
+📄 Licencia
+MIT License - ver LICENSE
+
+🙏 Agradecimientos
+
+Comunidad Home Assistant
+Saunier Duval API MiCasa
+Fronius Solar API
+Forecast.Solar
+
+
+Hecho con ❤️ en Manacor, Mallorca | Última actualización: 2025-10-04
